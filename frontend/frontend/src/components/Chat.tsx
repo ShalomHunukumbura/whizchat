@@ -1,28 +1,58 @@
 import React, { useEffect, useState } from "react";
 import socket from "../socket";
+import axios from "axios"
 
-const Chat: React.FC = () => {
+
+interface Message {
+  text: string;
+  user: string;
+}
+
+interface ChatProps {
+  user: { displayName: string | null;
+  email: string | null;
+  uid: string
+  }
+}
+
+const Chat: React.FC<ChatProps> = ({ user }) => {
   const [message, setMessage] = useState(""); // Input message
-  const [messages, setMessages] = useState<string[]>([]); // Message list
+  const [messages, setMessages] = useState<Message[]>([]); // Message list
 
-  // Listen for messages
-  useEffect(() => {
-    const handleMessage = (newMessage: string) => {
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-    };
+  //fetch previous messages
+  useEffect(()=>{
+    const fetchMessages = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/messages")
+        setMessages(response.data)
+      } catch(error){
+        console.error("Error Fetching messages: ", error)
+      }
+    }
+    fetchMessages()
+  },[])
 
-    socket.on("receiveMessage", handleMessage);
+  //listen for new messages
+  useEffect(()=>{
+    const handleMessage = (newMessage: { user: string; text: string}) => {
+      setMessages((prevMessages)=>[...prevMessages, newMessage])
+    }
 
-    return () => {
-      socket.off("receiveMessage", handleMessage); // Clean up listener
-    };
-  }, []);
+    socket.on("receiveMessage", handleMessage)
 
-  // Send a message
+    return() =>{
+      socket.off("receiveMessage", handleMessage) //clean up listener
+    }
+  },[])
+
+  // send a message
   const sendMessage = () => {
     if (message.trim()) {
-      socket.emit("sendMessage", message); // Emit to backend
-      setMessages((prevMessages) => [...prevMessages, message]); // Update UI immediately
+      const username = user.displayName || "Anonymous"
+      const newMessage = { user: username, text: message}
+
+      socket.emit("sendMessage", newMessage)
+      setMessages((prevMessages) => [...prevMessages, { user:username, text: message }]);
       setMessage(""); // Clear input
     }
   };
@@ -33,7 +63,7 @@ const Chat: React.FC = () => {
       <div className="flex-1 overflow-auto mb-4">
         {messages.map((msg, index) => (
           <div key={index} className="p-2 bg-gray-100 mb-2 rounded">
-            {msg}
+            <strong>{msg.user}:</strong> {msg.text}
           </div>
         ))}
       </div>
