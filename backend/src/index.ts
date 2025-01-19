@@ -71,6 +71,7 @@ io.on("connection", (socket) => {
     const newMessage = new Message({
       user: messageData.user,
       text: messageData.text,
+      timestamp: messageData.timestamp,
     });
 
     await newMessage.save();
@@ -78,6 +79,16 @@ io.on("connection", (socket) => {
     // Broadcast message to other clients
     socket.broadcast.emit("receiveMessage", messageData);
   });
+
+  //typing event: user is typing
+  socket.on("typing", (username) => {
+    socket.broadcast.emit("userTyping", username) //broadcast typing to other clients
+  })
+
+  //stop typing event: user stopped typing
+  socket.on("stopTyping", (username) => {
+    socket.broadcast.emit("userStoppedTyping", username) // boradcast stop typing to other users
+  })
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
